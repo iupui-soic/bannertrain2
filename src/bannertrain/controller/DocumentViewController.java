@@ -153,20 +153,27 @@ public class DocumentViewController implements Serializable {
 	private int getCharacterOffset(SofaDocumentTransport sd, SofaTextMentionTransport stm,
 			SofaTextTransport text) {
 		
-			System.out.println(sd.getText());
-			System.out.println(text.getText());
-			System.out.println(stm.getMentionText());
-			int textOffset = sd.getText().indexOf(text.getText());
-			int mentionOffset = text.getText().indexOf(stm.getMentionText());
+			String doc = sd.getText().replaceAll("\\r|\\n", "");
+			String docText = text.getText().replaceAll("\\r|\\n", "");
+			String mentionText = stm.getMentionText().replaceAll("\\r|\\n", "");
+		
+			/*
+			System.out.println("*****************************");
+			System.out.println(doc);
+			System.out.println(docText);
+			System.out.println(mentionText);
+			*/
+			int textOffset = doc.indexOf(docText);
+			int mentionOffset = docText.indexOf(mentionText);
 			
-			System.out.println(textOffset);
-			System.out.println(mentionOffset);
+			//System.out.println(textOffset);
+			//System.out.println(mentionOffset);
 			
 			//Something went wrong...
 			if(textOffset == -1 || mentionOffset == -1)
 				return -1;
 			
-			return textOffset+mentionOffset;
+			return textOffset+mentionOffset+1;
 		
 	}
 

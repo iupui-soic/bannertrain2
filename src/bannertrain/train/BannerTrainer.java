@@ -88,14 +88,14 @@ public class BannerTrainer implements Serializable {
 				tokenizer.tokenize(sentence);
 				for(SofaTextMentionTransport mention : text.getSofaTextMention())
 				{
-					System.out.println("MENTION-TEXT: "+mention.getMentionText());
-					System.out.println(mention.getMentionType());
+					//System.out.println("MENTION-TEXT: "+mention.getMentionText());
+					//System.out.println(mention.getMentionType());
 					String type = mentionClassMap.get(mention.getMentionType());
-					System.out.println(type);
+					//System.out.println(type);
 					try{
 					Mention m = new Mention(sentence,MentionType.getType(type), mention.getMentionStart(), mention.getMentionEnd()+1);
 					sentence.addMention(m);
-					System.out.println(m);
+					//System.out.println(m);
 					}catch(Exception e)
 					{
 						e.printStackTrace();
@@ -106,6 +106,8 @@ public class BannerTrainer implements Serializable {
 			}
 			
 		}
+		
+		
 		String modelName = "/Users/ryaneshleman/Documents/workspace/NER_OpenMRS/Banner/I2B2Model14";
 		File f = new File(modelName);
 		//CRFTagger tagger = CRFTagger.load(f, properties.getLemmatiser(), properties.getPosTagger(), properties.getPreTagger());

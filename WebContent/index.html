@@ -283,7 +283,7 @@ background-image: linear-gradient(to bottom,#1aac9b,#1AAC7F 100%)
     function updateDocumentViewerHTML(text)
     {
     	
-    	docText = text;
+    	docText = text.replace(/\n|\r/g,'');
     	$("#doc-viewer").html(text);
     	$.get("rest/document-view/mentions?docId="+docID_g,populateMentions)
     	
