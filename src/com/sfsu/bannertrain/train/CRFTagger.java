@@ -4,7 +4,7 @@
  This software is provided under the terms of the Common Public License, version 1.0, as published by http://www.opensource.org.  For further information, see the file 'LICENSE.txt' included with this distribution.
  */
 
-package bannertrain.train;
+package com.sfsu.bannertrain.train;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -54,6 +54,7 @@ import banner.tagging.String2TokenSequencePipe;
 import banner.tagging.TaggedToken.TagFormat;
 import banner.tagging.TaggedToken.TagPosition;
 import banner.tagging.Tagger;
+import bannertrain.train.BannerProperties;
 
 public class CRFTagger implements Tagger,Serializable
 {

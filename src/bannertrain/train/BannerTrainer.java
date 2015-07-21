@@ -28,8 +28,7 @@ import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.DeserializationConfig.Feature;
 
-import bannertrain.train.BannerProperties;
-import bannertrain.train.CRFTagger;
+import com.sfsu.bannertrain.train.CRFTagger;
 
 import banner.BannerProperties.TextDirection;
 import banner.Sentence;
@@ -37,7 +36,7 @@ import banner.tagging.Mention;
 import banner.tagging.MentionType;
 import banner.tokenization.Tokenizer;
 import dragon.nlp.tool.*;
-
+import bannertrain.train.BannerProperties;
 import bannertrain.transport.SofaDocumentTransport;
 import bannertrain.transport.SofaTextMentionTransport;
 import bannertrain.transport.SofaTextTransport;

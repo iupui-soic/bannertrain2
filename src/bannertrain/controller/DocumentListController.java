@@ -12,6 +12,8 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -27,6 +29,8 @@ import javax.ws.rs.core.MultivaluedMap;
 import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
+
+
 
 //import bannertrain.SofaDocumentTmp;
 import bannertrain.mediator.Mediator;
@@ -94,7 +98,8 @@ public class DocumentListController {
   private String documentList() {
 	  
 	  
-	String data = "{\"data\":[";
+	  DateFormat df = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+	  String data = "{\"data\":[";
 	
 	
 	if(!mediator.isPopulated())
@@ -103,9 +108,16 @@ public class DocumentListController {
 	for(SofaDocumentTransport d : mediator.getSofaDocumentTransport())
 	{
 		Date date = d.getDateCreated();
+		String name = String.format("%d. %s, %s",
+									d.getPatientID(),
+									d.getPatientFamilyName(),
+									d.getPatientGivenName());
 		
-		String dateString = String.format("%d/%d/%d",date.getMonth(),date.getDay(),date.getYear()-100);
-		data += String.format("[\"%d\",\"%s\",\"%s\"],", d.getSofaDocumentId(),dateString,"description");
+		String dateString = df.format(date);
+		data += String.format("[\"%d\",\"%s\",\"%s\"],",
+						d.getSofaDocumentId(),
+						dateString,
+						name);
 	}
 	//remove trailing comma
 	data = data.substring(0, data.length()-1);

@@ -76,6 +76,65 @@ background-image: linear-gradient(to bottom,#1aac9b,#1AAC7F 100%)
 	background-color: khaki;
 }
 
+.document-selected {
+	background-color:rgb(178, 240, 255) !important;
+}
+
+.popover-title{
+	background-color:rgb(183, 196, 247);
+}
+
+
+/* Thanks to: http://stackoverflow.com/questions/1964839/jquery-please-wait-loading-animation/1964871#1964871 */
+
+/* Start by setting display:none to make this hidden.
+   Then we position it in relation to the viewport window
+   with position:fixed. Width, height, top and left speak
+   for themselves. Background we set to 80% white with
+   our animation centered, and no-repeating */
+.modal {
+    display:    none;
+    position:   fixed;
+    z-index:    1000;
+    top:        0;
+    left:       0;
+    height:     100%;
+    width:      100%;
+    background: rgba( 255, 255, 255, .8 ) 
+                url('images/loading.gif') 
+                50% 50% 
+                no-repeat;
+    
+}
+
+.modal span{
+  position: absolute;
+  top: 54%;
+  width: 100%;
+  text-align: center;
+}
+
+/* When the body has the loading class, we turn
+   the scrollbar off with overflow:hidden */
+body.loading {
+    overflow: hidden;   
+}
+
+/* Anytime the body has the loading class, our
+   modal element will be visible */
+body.loading .modal {
+    display: block;
+}
+
+.table-caption {
+	color:rgb(66, 66, 208);
+	font-size:25px;
+}
+
+h1 a {
+	font-size:20px;
+}
+
 	
 </style>    
     
@@ -107,9 +166,10 @@ background-image: linear-gradient(to bottom,#1aac9b,#1AAC7F 100%)
     <!-- Main jumbotron for a primary marketing message or call to action -->
     <div class="jumbotron">
       <div class="container">
-        <h1>Language Model Trainer</h1>
+        <h1>Language Model Trainer <a href=# onclick=showHelpPopovers()>help</a></h1>
+        
         <input id="host-domain" type=text value="host.domain:port"></input>
-        <button onClick=loadModel() >populate </button>
+        <button id="populate-button" onClick=loadModel() >populate </button>
         <br>
         <input id="model-path" type=text value="modelFilename.ser"></input>
         
@@ -120,25 +180,18 @@ background-image: linear-gradient(to bottom,#1aac9b,#1AAC7F 100%)
     
 
     <div class="container">
-    <div class="concept-key">
-    	<a id="download-button" hidden=true href="rest/document-view/download-most-recent"><button>Download</button></a>
-    	<button onClick=train()>Train</button>
-    	<button onClick=saveMentions()>Save</button>
-    	
-    	<span class="concept-class-prob">Problem</span>
-    	<span class="concept-class-test">Test</span>
-    	<span class="concept-class-trea">Treatment</span>
-    	<span class="changed">Modified</span>
-    </div>
+    
       <!-- Example row of columns -->
-      <div class="row">
-        <div class="col-md-6">
-        	<table id="document-list" class="display " cellspacing="0" width="100%">
+     <div class="row">
+     <div class="col-md-3">
+     <span class=table-caption>Document List</span>
+     <table id="document-list" class="display compact" cellspacing="0" width="100%">
+        	
         	<thead>
             	<tr>
                 	<th>DocID</th>
                 	<th>Date</th>
-                	<th>concepts</th>
+                	<th>ID Name</th>
                 	
 
             	</tr>
@@ -148,21 +201,56 @@ background-image: linear-gradient(to bottom,#1aac9b,#1AAC7F 100%)
             	<tr>
                 	<th>DocID</th>
                 	<th>Date</th>
-                	<th>concepts</th>
+                	<th>ID Name</th>
                 	
                 	
             	</tr>
         	</tfoot>
     </table>
           
-        </div>
+    </div>
+    
+    
         <div class="col-md-6">
+        <div class="concept-key">
+    	<a id="download-button" hidden=true href="rest/document-view/download-most-recent"><button>Download</button></a>
+    	<button id=train-button onClick=train()>Train</button>
+    	<button id=save-button onClick=saveMentions()>Save</button>
+    	
+    	<span class="concept-class-prob">Problem</span>
+    	<span class="concept-class-test">Test</span>
+    	<span class="concept-class-trea">Treatment</span>
+    	<span class="changed">Modified</span>
+    </div>
           
           <div id=doc-viewer class="doc-viewer"></div>
        </div>
+       
+       <div class="col-md-3">
+    <span id=change-log-title class=table-caption> Change Log</span>
+    <table id="change-log" class="display compact" cellspacing="0" width="100%">
+        	<thead>
+            	<tr>
+                	<th>From</th>
+                	<th>To</th>
+                	
+            	</tr>
+        	</thead>
+ 
+        	<tfoot>
+            	<tr>
+                	<th>From</th>
+                	<th>To</th>
+                	
+            	</tr>
+        	</tfoot>
+    </table>
+    
+    </div>
 
       </div>
       
+  <div class="modal"><span></span></div>
   <div id="dialog-form" title="Choose Concept Type For">
   <p id="selected-mention" class="validateTips"></p>
 </div>
@@ -186,21 +274,39 @@ background-image: linear-gradient(to bottom,#1aac9b,#1AAC7F 100%)
     var docText
     var cur_class_selection
     var cur_mention_selection
+    var loadingScreen = true;
+    var changeLogTable;
+    var changeLogItems = [];
+    
+    var loading_messages = [ "Hang on a sec, I know your data is here somewhere",
+                             "Don't think of purple hippos",
+                             "Please wait while we test your patience",
+                             "Please wait, the server is powered by a lemon and two electrodes"
+                            ]
     
     
     $(document).ready(function() {
-        $('#document-list').dataTable( {
-            "ajax": "rest/document-list"
+         table =  $('#document-list').dataTable( {
+            "ajax": "rest/document-list",
+            
+            
         } );
+         
+         changeLogTable = $('#change-log').DataTable({"bSort": false});
+    	
    
     
     $('#document-list tbody').on('click', 'tr', function () {
         var docID = $('td', this).eq(0).text();
+        $(".document-selected").removeClass("document-selected")
+        this.classList.add("document-selected");
         doDocumentSelected(docID)
     } );
     
     $('#doc-viewer').on('mouseup', doTextSelected );
     $('#doc-viewer span').on('mousedown', doConceptSelected );
+    
+    
  
     dialog = $( "#dialog-form" ).dialog({
         autoOpen: false,
@@ -218,9 +324,12 @@ background-image: linear-gradient(to bottom,#1aac9b,#1AAC7F 100%)
         }
       });
     
+       
     
+    $('[data-toggle="tooltip"]').tooltip()
     } );
     
+    var foo;
 	function doTextSelected() {
 		
         
@@ -250,7 +359,7 @@ background-image: linear-gradient(to bottom,#1aac9b,#1AAC7F 100%)
     	updateDocument()
     	
     	
-    	doConceptSelected(true,mentions.indexOf(m));
+    	doConceptSelected(false,mentions.indexOf(m));
     	
     	
     }
@@ -259,24 +368,80 @@ background-image: linear-gradient(to bottom,#1aac9b,#1AAC7F 100%)
 		
 		
 		cur_mention_selection = parseInt(i)
-		mentions[cur_mention_selection]["changed"] = changed
+		mentions[cur_mention_selection]["changed"] = false
 		$("#selected-mention").text(mentions[cur_mention_selection].text)
 		dialog.dialog("open")	
 	}
 	
 	function updateMentionType(index,class_name){
+		
+		from = cloneMention(mentions[index]);
 		mentions[index].class_name = class_name
+		
+		to = cloneMention(mentions[index]);
+		addToChangeLog(from,to,mentions[index])
+		
 		updateDocument()
 		
+	}
+	
+	function addToChangeLog(from,to,orig)
+	{
+		
+		changeLogItems.push({"from":from,"to":to,"orig":orig})
+		
+		fromHTML = "<span class="+from.class_name+">"+from.text+"</span>"
+		toHTML = "<span class="+to.class_name+">"+to.text+"</span>"
+		changeLogTable.row.add([fromHTML,toHTML]).draw();
+		$('#change-log tbody tr').on('mouseenter', highlightChange);
+	    $('#change-log tbody tr').on('mouseleave', unHighlightChange);
+	    //$('#change-log tr.even').on('mouseenter', highlightChange);
+	    //$('#change-log tr.even').on('mouseout', unHighlightChange);
+	}
+
+	function highlightChange()
+	{
+		var index = this.rowIndex - 1;
+		changeLogItems[index].orig.changed = true;
+		updateDocument()
+	}
+	
+	function unHighlightChange()
+	{
+		var index = this.rowIndex - 1;
+		changeLogItems[index].orig.changed = false;
+		updateDocument()
+	}
+	
+	function cloneMention(m)
+	{
+		return new mention(m.offset,m.extent,m.text, m.class_name)
 	}
 	
     var docID_g
 	
     function doDocumentSelected(docID)
     {
+    	doSavePrompt();
+    	
     	mentions = [];
     	docID_g = docID
+    	loadingScreen = false;
     	$.get("rest/document-view?docId="+docID,updateDocumentViewerHTML)
+    	loadingScreen = true;
+    	
+    }
+    
+    function doSavePrompt()
+    {
+    	if(changeLogItems == 0)
+    		return
+    		
+    	if(confirm("Save Changes?"))
+    		saveMentions()
+    	
+    	
+    		
     	
     }
     
@@ -460,6 +625,9 @@ background-image: linear-gradient(to bottom,#1aac9b,#1AAC7F 100%)
     		    "docId":docID_g},
     			success=refreshTable
     			)
+    			
+    	changeLogItems = [];
+    	changeLogTable.clear().draw()
     	
     }
     
@@ -475,6 +643,86 @@ background-image: linear-gradient(to bottom,#1aac9b,#1AAC7F 100%)
     			)
     }
     
+    
+    $body = $("body");
+
+    $(document).on({
+        ajaxStart: function() {
+        	if(loadingScreen)
+        	{	
+        		var message_index = Math.floor(Math.random()*loading_messages.length);
+        		$(".modal span").text(loading_messages[message_index])
+        		$body.addClass("loading");
+        	}
+        	},
+         ajaxStop: function() {
+        	 if(loadingScreen)
+        	 	$body.removeClass("loading"); }    
+    });
+    
+    function showHelpPopovers()
+    {
+    	trainButtonPopover = {"title":"Train Model",
+    						  "content": "Press this button and the application will use the annotations to train a new model",
+    						  "placement":"bottom"}
+    	
+    	saveButtonPopover = {"title":"Save Current Changes",
+							 "content": "Press this button to save the changes you have made to the annotations below",
+							 "placement":"top"}
+    	
+    	changeLogPopover = {"title":"Change Log",
+				 		   	 "content": "This table shows all changes made to the current document.  Hover over a change to see it highlighed in the document",
+							 "placement":"top"}
+    	
+    	populateButtonPopover = {"title":"Populate",
+	 		   	 "content": "put the url port # in the input box to the left and click this button.  This will read documents from the OpenMRS installation and populate the document list",
+				 "placement":"bottom"}
+    	
+    	documentListPopover = {"title":"Document List",
+	 		   	 "content": "This table holds a list of annotated documents.  Click on a document to render it in the document viewer",
+				 "placement":"right"}
+    	
+    	docViewerPopover = {"title":"Document Viewer",
+	 		   	 "content": "The selected docuemnt is rendered here with annotations highlighed by class.  Annotations can be added by highlighting the text with the cursor.  Click on an annotation to change the class",
+				 "placement":"right",
+				 "trigger":"focus"}
+    	
+    	$("#train-button").popover(trainButtonPopover)
+    	$("#train-button").popover('show')
+    	
+    	$("#save-button").popover(saveButtonPopover)
+    	$("#save-button").popover('show')
+    	
+    	$("#change-log-title").popover(changeLogPopover)
+    	$("#change-log-title").popover('show')
+    	
+    	$("#populate-button").popover(populateButtonPopover)
+    	$("#populate-button").popover('show')
+    	
+    	$("#document-list").popover(documentListPopover)
+    	$("#document-list").popover('show')
+    	
+    	$("#doc-viewer").popover(docViewerPopover)
+    	$("#doc-viewer").popover('show')
+    	
+    	
+    	setTimeout(function(){$("body").on("click",hideHelpPopovers)},1000);
+    }
+    
+    function hideHelpPopovers()
+    {
+    	$("#train-button").popover('destroy')
+    	$("#save-button").popover('destroy')
+    	$("#change-log-title").popover('destroy')
+    	$("#populate-button").popover('destroy')
+    	$("#document-list").popover('destroy')
+    	$("#doc-viewer").popover('destroy')
+    	
+    	$("body").off("click",hideHelpPopovers)
+    	
+    	
+    	
+    }
 
     </script>
   </body>
