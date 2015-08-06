@@ -108,12 +108,12 @@ public class DocumentListController {
 	for(SofaDocumentTransport d : mediator.getSofaDocumentTransport())
 	{
 		Date date = d.getDateCreated();
-		String name = String.format("%d. %s, %s",
-									d.getPatientID(),
+		String name = String.format(" %s, %s\\n%s",
 									d.getPatientFamilyName(),
-									d.getPatientGivenName());
+									d.getPatientGivenName(),
+									d.getPatientID());
 		
-		String dateString = df.format(date);
+		String dateString = df.format(date).replace(" ", "\\n");
 		data += String.format("[\"%d\",\"%s\",\"%s\"],",
 						d.getSofaDocumentId(),
 						dateString,

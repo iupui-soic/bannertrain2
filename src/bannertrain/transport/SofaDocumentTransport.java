@@ -23,7 +23,7 @@ public class SofaDocumentTransport implements Serializable {
 	private String annotatedHTML;
 	private String uuid;
 	private Set<SofaTextTransport> sofaText = new HashSet<SofaTextTransport>();
-	private int patientID;
+	private String patientID;
 	private String patientGivenName;
 	private String patientFamilyName;
 	
@@ -147,13 +147,13 @@ public class SofaDocumentTransport implements Serializable {
 
 
 
-	public int getPatientID() {
+	public String getPatientID() {
 		return patientID;
 	}
 
 
 
-	public void setPatientID(int patientID) {
+	public void setPatientID(String patientID) {
 		this.patientID = patientID;
 	}
 

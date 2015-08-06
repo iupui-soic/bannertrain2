@@ -10,7 +10,7 @@
     <meta name="author" content="">
     <link rel="icon" href="../../favicon.ico">
 
-    <title>Language Model Trainer</title>
+    <title>Entity Annotator and Trainer</title>
     
 <script src="js/jquery.min.js"></script>
 <script type="text/javascript" src="js/jquery.dataTables.min.js"></script>
@@ -50,12 +50,12 @@ div.doc-viewer {
 	cursor:pointer
 }
 
-.concept-class-trea {
+.concept-class-test {
 	color:blue;
 	cursor:pointer
 }
 
-.concept-class-test {
+.concept-class-trea {
 	color:green;
 	cursor:pointer
 }
@@ -63,7 +63,11 @@ div.doc-viewer {
 
 
 .navbar {
-background-image: linear-gradient(to bottom,#1aac9b,#1AAC7F 100%)
+	background-image: linear-gradient(to bottom,#eeeeee,#eeeeee 100%);
+	color:#363463;
+	border-style: solid none;
+    border-width: 5px;
+    border-color: #00463f;
 }
 
 .concept-key{
@@ -135,6 +139,39 @@ h1 a {
 	font-size:20px;
 }
 
+#document-list td {
+white-space: pre;
+}
+
+.jumbotron{
+	padding:30px;
+	padding-bottom:5px;
+	padding-top:50px;
+	background-color: #363463;
+	
+	background-image: linear-gradient(to bottom,#563d7c 0,#6f5499 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#563d7c', endColorstr='#6F5499', GradientType=0);
+	
+}
+
+.jumbotron h1{
+	color:white;
+	font-family:open-sans;
+	border-style: solid;
+    border-radius: 4px;
+    border-color: #00463f;
+    border-width: thin;
+}
+
+body {
+	background-color:#eeeeee;
+}
+.dataTables_wrapper{
+	border-top: purple;
+    border-bottom: purple;
+    border-style: solid none;
+}
+
 	
 </style>    
     
@@ -155,10 +192,7 @@ h1 a {
 
         </div>
         <div id="navbar" class="navbar-collapse collapse">
-          <form class="navbar-form navbar-right">
-            
-
-          </form>
+          <h3>OpenMRS Visit Note Analysis Module Companion</h3>
         </div><!--/.navbar-collapse -->
       </div>
     </nav>
@@ -166,12 +200,12 @@ h1 a {
     <!-- Main jumbotron for a primary marketing message or call to action -->
     <div class="jumbotron">
       <div class="container">
-        <h1>Language Model Trainer <a href=# onclick=showHelpPopovers()>help</a></h1>
+        <h1>Visit Note Annotator and Trainer <a href=# onclick=showHelpPopovers()>help</a></h1>
         
         <input id="host-domain" type=text value="host.domain:port"></input>
         <button id="populate-button" onClick=loadModel() >populate </button>
         <br>
-        <input id="model-path" type=text value="modelFilename.ser"></input>
+        <input id="model-path" hidden=true type=text value="modelFilename.ser"></input>
         
        
 
@@ -184,14 +218,14 @@ h1 a {
       <!-- Example row of columns -->
      <div class="row">
      <div class="col-md-3">
-     <span class=table-caption>Document List</span>
+     <span class=table-caption id=visit-note-list>Visit Note List</span>
      <table id="document-list" class="display compact" cellspacing="0" width="100%">
         	
         	<thead>
             	<tr>
                 	<th>DocID</th>
                 	<th>Date</th>
-                	<th>ID Name</th>
+                	<th>Name<br/>MRN</th>
                 	
 
             	</tr>
@@ -201,7 +235,7 @@ h1 a {
             	<tr>
                 	<th>DocID</th>
                 	<th>Date</th>
-                	<th>ID Name</th>
+                	<th>Name<br/>MRN</th>
                 	
                 	
             	</tr>
@@ -214,13 +248,14 @@ h1 a {
         <div class="col-md-6">
         <div class="concept-key">
     	<a id="download-button" hidden=true href="rest/document-view/download-most-recent"><button>Download</button></a>
-    	<button id=train-button onClick=train()>Train</button>
-    	<button id=save-button onClick=saveMentions()>Save</button>
+    	
     	
     	<span class="concept-class-prob">Problem</span>
     	<span class="concept-class-test">Test</span>
     	<span class="concept-class-trea">Treatment</span>
     	<span class="changed">Modified</span>
+    	<button id=save-button onClick=saveMentions()>Save</button>
+    	<button id=train-button onClick=train()>Build</button>
     </div>
           
           <div id=doc-viewer class="doc-viewer"></div>
@@ -233,6 +268,7 @@ h1 a {
             	<tr>
                 	<th>From</th>
                 	<th>To</th>
+                	<th></th>
                 	
             	</tr>
         	</thead>
@@ -241,6 +277,7 @@ h1 a {
             	<tr>
                 	<th>From</th>
                 	<th>To</th>
+                	<th></th>
                 	
             	</tr>
         	</tfoot>
@@ -277,27 +314,59 @@ h1 a {
     var loadingScreen = true;
     var changeLogTable;
     var changeLogItems = [];
+    var dt;
+    var curPopover;
+    var curPopoverId;
     
-    var loading_messages = [ "Hang on a sec, I know your data is here somewhere",
-                             "Don't think of purple hippos",
-                             "Please wait while we test your patience",
-                             "Please wait, the server is powered by a lemon and two electrodes"
+    var loading_messages = [ "Hang on a sec, I know your data is here somewhere. This may take a while",
+                             "Don't think of purple hippos. This may take a while.",
+                             "Please wait while we test your patience. This may take a while.",
+                             "Please wait, the server is powered by a lemon and two electrodes. This may take a while."
                             ]
+    //Popovers
+    
+    var trainButtonPopover = {"title":"Build Model",
+			  "content": "Press this button and the application will use the annotations to build a new model",
+			  "placement":"bottom"}
+
+	var saveButtonPopover = {"title":"Save Current Changes",
+			 "content": "Press this button to save the changes you have made to the annotations below",
+			 "placement":"top"}
+	
+	var changeLogPopover = {"title":"Change Log",
+		   	 "content": "This table shows all changes made to the current document.  Hover over a change to see it highlighed in the document",
+			 "placement":"right"}
+
+	var populateButtonPopover = {"title":"Populate",
+	 		"content": "put the url port # of your OpenMRS installing in the input box to the left and click this button.  This will read documents from OpenMRS and populate the document list",
+			"placement":"right"}
+
+	var documentListPopover = {"title":"Visit Note List",
+	 		"content": "This table holds a list of annotated documents.  Click on a document to render it in the document viewer",
+			"placement":"right"}
+
+	var docViewerPopover = {"title":"Visit Note Viewer",
+	 		"content": "The selected document is rendered here with annotations highlighed by class.  Annotations can be added by highlighting the text with the cursor.  Click on an annotation to change the class",
+			"placement":"right"}
+    
     
     
     $(document).ready(function() {
-         table =  $('#document-list').dataTable( {
+         table =  $('#document-list').DataTable( {
             "ajax": "rest/document-list",
             
             
         } );
+         //table.column(0).visible(false);
+         dt = $().dataTable()
          
          changeLogTable = $('#change-log').DataTable({"bSort": false});
     	
    
     
     $('#document-list tbody').on('click', 'tr', function () {
-        var docID = $('td', this).eq(0).text();
+        
+    	var docID = table.data()[this.rowIndex-1][0]
         $(".document-selected").removeClass("document-selected")
         this.classList.add("document-selected");
         doDocumentSelected(docID)
@@ -320,14 +389,46 @@ h1 a {
             "None":function(){updateMentionType(cur_mention_selection,"concept-class-none"); dialog.dialog("close")},
         },
         close: function() {
-          
-        }
+          }
       });
     
+	  setHoverPopover(documentListPopover,"#visit-note-list")    
+      setHoverPopover(trainButtonPopover,"#train-button")
+      setHoverPopover(saveButtonPopover,"#save-button")
+      setHoverPopover(changeLogPopover,"#change-log-title")
+      setHoverPopover(populateButtonPopover,"#populate-button")
+      setHoverPopover(docViewerPopover,"#doc-viewer")
+    
+      /*
+    $("#train-button").popover('destroy')
+    	$("#save-button").popover('destroy')
+    	$("#change-log-title").popover('destroy')
+    	$("#populate-button").popover('destroy')
+    	$("#document-list").popover('destroy')
+    	$("#doc-viewer").popover('destroy')
+    	$("#visit-note-list").popover('destroy')
+    */
        
     
     $('[data-toggle="tooltip"]').tooltip()
-    } );
+    
+    } );  // end .ready();
+    
+    function showPopover()
+    {
+    	$(curPopoverId).popover(curPopover)
+    	$(curPopoverId).popover("show")
+    	
+    }
+    
+    function setHoverPopover(options,id)
+    {
+    	$(id).hover(function()
+                { curPopover = options;
+                  curPopoverId = id
+      	  		popoverTimeout = setTimeout(showPopover, 1000);}, 
+                hideHelpPopovers);
+    }
     
     var foo;
 	function doTextSelected() {
@@ -375,12 +476,13 @@ h1 a {
 	
 	function updateMentionType(index,class_name){
 		
-		from = cloneMention(mentions[index]);
-		mentions[index].class_name = class_name
-		
-		to = cloneMention(mentions[index]);
-		addToChangeLog(from,to,mentions[index])
-		
+		if(mentions[index].class_name != class_name)
+		{	
+			from = cloneMention(mentions[index]);
+			mentions[index].class_name = class_name
+			to = cloneMention(mentions[index]);
+			addToChangeLog(from,to,mentions[index])
+		}
 		updateDocument()
 		
 	}
@@ -391,12 +493,40 @@ h1 a {
 		changeLogItems.push({"from":from,"to":to,"orig":orig})
 		
 		fromHTML = "<span class="+from.class_name+">"+from.text+"</span>"
-		toHTML = "<span class="+to.class_name+">"+to.text+"</span>"
-		changeLogTable.row.add([fromHTML,toHTML]).draw();
+		
+		if(to.class_name == "concept-class-none"){
+			toHTML = " -   ";
+		}	
+		else{
+			toHTML = "<span class="+to.class_name+">"+to.text+"</span>"
+		}
+		
+		undoButton = "<button>undo</button>"
+		
+		changeLogTable.row.add([fromHTML,toHTML,undoButton]).draw();
 		$('#change-log tbody tr').on('mouseenter', highlightChange);
+		$('#change-log tbody tr button').on('click', undoChangeLog);
 	    $('#change-log tbody tr').on('mouseleave', unHighlightChange);
 	    //$('#change-log tr.even').on('mouseenter', highlightChange);
 	    //$('#change-log tr.even').on('mouseout', unHighlightChange);
+	}
+
+	function undoChangeLog()
+	{
+		index = this.parentNode.parentNode.rowIndex - 1
+		
+		logItem = changeLogItems[index]
+		
+		logItem.orig.class_name = logItem.from.class_name;
+		
+		changeLogItems.splice(index, 1);
+		
+		logItem.orig.changed = false;
+		changeLogTable.row(index).remove().draw()
+		
+		updateDocument();
+		
+		
 	}
 
 	function highlightChange()
@@ -662,30 +792,7 @@ h1 a {
     
     function showHelpPopovers()
     {
-    	trainButtonPopover = {"title":"Train Model",
-    						  "content": "Press this button and the application will use the annotations to train a new model",
-    						  "placement":"bottom"}
     	
-    	saveButtonPopover = {"title":"Save Current Changes",
-							 "content": "Press this button to save the changes you have made to the annotations below",
-							 "placement":"top"}
-    	
-    	changeLogPopover = {"title":"Change Log",
-				 		   	 "content": "This table shows all changes made to the current document.  Hover over a change to see it highlighed in the document",
-							 "placement":"top"}
-    	
-    	populateButtonPopover = {"title":"Populate",
-	 		   	 "content": "put the url port # in the input box to the left and click this button.  This will read documents from the OpenMRS installation and populate the document list",
-				 "placement":"bottom"}
-    	
-    	documentListPopover = {"title":"Document List",
-	 		   	 "content": "This table holds a list of annotated documents.  Click on a document to render it in the document viewer",
-				 "placement":"right"}
-    	
-    	docViewerPopover = {"title":"Document Viewer",
-	 		   	 "content": "The selected docuemnt is rendered here with annotations highlighed by class.  Annotations can be added by highlighting the text with the cursor.  Click on an annotation to change the class",
-				 "placement":"right",
-				 "trigger":"focus"}
     	
     	$("#train-button").popover(trainButtonPopover)
     	$("#train-button").popover('show')
@@ -699,8 +806,11 @@ h1 a {
     	$("#populate-button").popover(populateButtonPopover)
     	$("#populate-button").popover('show')
     	
-    	$("#document-list").popover(documentListPopover)
-    	$("#document-list").popover('show')
+    	//$("#document-list").popover(documentListPopover)
+    	//$("#document-list").popover('show')
+    	
+    	$("#visit-note-list").popover(documentListPopover)
+    	$("#visit-note-list").popover('show')
     	
     	$("#doc-viewer").popover(docViewerPopover)
     	$("#doc-viewer").popover('show')
@@ -717,8 +827,10 @@ h1 a {
     	$("#populate-button").popover('destroy')
     	$("#document-list").popover('destroy')
     	$("#doc-viewer").popover('destroy')
+    	$("#visit-note-list").popover('destroy')
     	
     	$("body").off("click",hideHelpPopovers)
+    	clearTimeout(popoverTimeout);
     	
     	
     	

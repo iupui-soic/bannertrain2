@@ -54,6 +54,7 @@ public class Mediator implements Serializable {
 		for(SofaTextTransport sofaText : doc.getSofaText())
 		{
 			Set<SofaTextMentionTransport> mentions = translateMentions(doc,sofaText,cmt);
+			
 			sofaText.setSofaTextMention(mentions);
 			
 		}
@@ -104,6 +105,11 @@ public class Mediator implements Serializable {
 		System.out.println("in translateMention");
 		for(ClientMentionTransport clientMention : cmt)
 		{
+			//no need to record if the entity was removed
+			if(clientMention.getClass_name().equals("concept-class-none"))
+					continue;
+			
+			
 			// determine if ClientMentionTransport appears in current SofaTextTransport
 			// could optimize by observing that clientMentions are sorted by offset. O(n+m) instead of O(m^2)
 			// however, method infrequently used and relatively small data
