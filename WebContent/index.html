@@ -296,7 +296,7 @@ body {
       <hr>
 
       <footer>
-        <p>&copy; Company 2014</p>
+        <p>contact: ryaneshleman@gmail.com</p>
       </footer>
     </div> <!-- /container -->
 
@@ -317,14 +317,16 @@ body {
     var dt;
     var curPopover;
     var curPopoverId;
+ 	
+    // global variable to hold current docId
+    var docID_g
     
     var loading_messages = [ "Hang on a sec, I know your data is here somewhere. This may take a while",
                              "Don't think of purple hippos. This may take a while.",
                              "Please wait while we test your patience. This may take a while.",
                              "Please wait, the server is powered by a lemon and two electrodes. This may take a while."
                             ]
-    //Popovers
-    
+    // help Popovers
     var trainButtonPopover = {"title":"Build Model",
 			  "content": "Press this button and the application will use the annotations to build a new model",
 			  "placement":"bottom"}
@@ -352,68 +354,57 @@ body {
     
     
     $(document).ready(function() {
-         table =  $('#document-list').DataTable( {
+        
+    	// initialize data tables to read data from url
+    	table =  $('#document-list').DataTable( {
             "ajax": "rest/document-list",
             
-            
         } );
-         //table.column(0).visible(false);
-         dt = $().dataTable()
          
+    	// initialize change log data table
          changeLogTable = $('#change-log').DataTable({"bSort": false});
     	
    
+    	// register event handlers
+    	$('#document-list tbody').on('click', 'tr', function () {
+    		var docID = table.data()[this.rowIndex-1][0]
+        	$(".document-selected").removeClass("document-selected")
+        	this.classList.add("document-selected");
+        	doDocumentSelected(docID)
+    	} );
     
-    $('#document-list tbody').on('click', 'tr', function () {
-        
-    	var docID = table.data()[this.rowIndex-1][0]
-        $(".document-selected").removeClass("document-selected")
-        this.classList.add("document-selected");
-        doDocumentSelected(docID)
-    } );
-    
-    $('#doc-viewer').on('mouseup', doTextSelected );
-    $('#doc-viewer span').on('mousedown', doConceptSelected );
+    	$('#doc-viewer').on('mouseup', doTextSelected );
+    	$('#doc-viewer span').on('mousedown', doConceptSelected );
     
     
- 
-    dialog = $( "#dialog-form" ).dialog({
-        autoOpen: false,
-        height: 150,
-        width: 350,
-        modal: true,
-        buttons: {
-          "Problem": function(){updateMentionType(cur_mention_selection,"concept-class-prob"); dialog.dialog("close")},
-          "Treatment": function(){updateMentionType(cur_mention_selection,"concept-class-trea"); dialog.dialog("close")},
-          "Test":function(){updateMentionType(cur_mention_selection,"concept-class-test"); dialog.dialog("close")},
+		// initialize entity class selection dialogue 
+    	dialog = $( "#dialog-form" ).dialog({
+        	autoOpen: false,
+        	height: 150,
+        	width: 350,
+        	modal: true,
+        	buttons: {
+          	"Problem": function(){updateMentionType(cur_mention_selection,"concept-class-prob"); dialog.dialog("close")},
+          	"Treatment": function(){updateMentionType(cur_mention_selection,"concept-class-trea"); dialog.dialog("close")},
+          	"Test":function(){updateMentionType(cur_mention_selection,"concept-class-test"); dialog.dialog("close")},
             "None":function(){updateMentionType(cur_mention_selection,"concept-class-none"); dialog.dialog("close")},
-        },
-        close: function() {
-          }
-      });
+        	},
+        	close: function() {
+          	}
+      	});
     
+	  
 	  setHoverPopover(documentListPopover,"#visit-note-list")    
       setHoverPopover(trainButtonPopover,"#train-button")
       setHoverPopover(saveButtonPopover,"#save-button")
       setHoverPopover(changeLogPopover,"#change-log-title")
       setHoverPopover(populateButtonPopover,"#populate-button")
       setHoverPopover(docViewerPopover,"#doc-viewer")
-    
-      /*
-    $("#train-button").popover('destroy')
-    	$("#save-button").popover('destroy')
-    	$("#change-log-title").popover('destroy')
-    	$("#populate-button").popover('destroy')
-    	$("#document-list").popover('destroy')
-    	$("#doc-viewer").popover('destroy')
-    	$("#visit-note-list").popover('destroy')
-    */
-       
-    
-    $('[data-toggle="tooltip"]').tooltip()
+
     
     } );  // end .ready();
     
+    // shows popover corresponding to curPopoverId global variable
     function showPopover()
     {
     	$(curPopoverId).popover(curPopover)
@@ -421,6 +412,7 @@ body {
     	
     }
     
+    // takes an options dict and an identifier and initializes a popover appropriately
     function setHoverPopover(options,id)
     {
     	$(id).hover(function()
@@ -429,11 +421,10 @@ body {
       	  		popoverTimeout = setTimeout(showPopover, 1000);}, 
                 hideHelpPopovers);
     }
-    
-    var foo;
+
+    // executed when user selects text in annotator editor
 	function doTextSelected() {
 		
-        
     	var selection = window.getSelection()
     	if(selection.getRangeAt)
     	{
@@ -445,20 +436,23 @@ body {
         	var base = selection.baseOffset
         	var extent = selection.extentOffset
     	}
-    	var selected_text = selection.toString()
     	
+    	// no text selected
         if(extent == base)
         	return false
+    	
+    	var selected_text = selection.toString()
         
         var offset = getOffset(selection)
        
         var concept_type = $('input[name="type"]:checked').val();
     	var class_name = "concept-class-none";
+    	
+    	//construct new mention, push to list
     	var m = new mention(offset + base+1, offset + extent+1,selected_text,class_name)
     	mentions.push(m)
 
     	updateDocument()
-    	
     	
     	doConceptSelected(false,mentions.indexOf(m));
     	
@@ -470,12 +464,15 @@ body {
 		
 		cur_mention_selection = parseInt(i)
 		mentions[cur_mention_selection]["changed"] = false
+		
+		// set dialog text
 		$("#selected-mention").text(mentions[cur_mention_selection].text)
 		dialog.dialog("open")	
 	}
 	
 	function updateMentionType(index,class_name){
 		
+		// of class_name hasn't changed.  dont do anything
 		if(mentions[index].class_name != class_name)
 		{	
 			from = cloneMention(mentions[index]);
@@ -483,6 +480,7 @@ body {
 			to = cloneMention(mentions[index]);
 			addToChangeLog(from,to,mentions[index])
 		}
+		
 		updateDocument()
 		
 	}
@@ -503,20 +501,24 @@ body {
 		
 		undoButton = "<button>undo</button>"
 		
+		//update changelog
 		changeLogTable.row.add([fromHTML,toHTML,undoButton]).draw();
+		
+		// register event listeners on new changelog rows
 		$('#change-log tbody tr').on('mouseenter', highlightChange);
 		$('#change-log tbody tr button').on('click', undoChangeLog);
 	    $('#change-log tbody tr').on('mouseleave', unHighlightChange);
-	    //$('#change-log tr.even').on('mouseenter', highlightChange);
-	    //$('#change-log tr.even').on('mouseout', unHighlightChange);
+
 	}
 
+	// undoes change associated with change log item
 	function undoChangeLog()
 	{
 		index = this.parentNode.parentNode.rowIndex - 1
 		
 		logItem = changeLogItems[index]
 		
+		// revert the class of the item to the previously held class
 		logItem.orig.class_name = logItem.from.class_name;
 		
 		changeLogItems.splice(index, 1);
@@ -548,17 +550,22 @@ body {
 		return new mention(m.offset,m.extent,m.text, m.class_name)
 	}
 	
-    var docID_g
+	
 	
     function doDocumentSelected(docID)
     {
     	doSavePrompt();
     	
+    	// clear mentions list
     	mentions = [];
     	docID_g = docID
+    	//disable loading screen
     	loadingScreen = false;
     	$.get("rest/document-view?docId="+docID,updateDocumentViewerHTML)
+    	
+    	// re-enable loading screen
     	loadingScreen = true;
+    	
     	
     }
     
@@ -569,10 +576,7 @@ body {
     		
     	if(confirm("Save Changes?"))
     		saveMentions()
-    	
-    	
     		
-    	
     }
     
     function updateDocumentViewerHTML(text)
@@ -580,6 +584,8 @@ body {
     	
     	docText = text.replace(/\n|\r/g,'');
     	$("#doc-viewer").html(text);
+    	
+    	// request mentions from server
     	$.get("rest/document-view/mentions?docId="+docID_g,populateMentions)
     	
     }
@@ -587,16 +593,7 @@ body {
 
     function populateMentions(data)
     {
-    	/*
-    	for(i=0; i<data.length; i++)
-    	{
-    		var d = data[i];
-    		m = new mention(d.offset,d.extent,d.text, d.class_name);
-    		mentions.push(m);
-    	}
-    	*/
     	mentions = data
-    	
     	updateDocument();
     }
     
@@ -627,6 +624,7 @@ body {
     	  }
     	}
     
+    // refreshes document view based on current state of mentions list
     function updateDocument()
     {
     	mentions.sort(keysrt("offset"))
@@ -640,25 +638,25 @@ body {
     		
     		m = mentions[i]
     		
-    		// 84 is additional characters added by markup.
+    		// 86 is additional characters added by markup per mention.
     		var markup_length = i*86
     		
     		var left = text.substring(0,m.offset+markup_length-1)
     		var right = text.substring(m.extent+markup_length-1)
     		
+    		// 3 digits for the index, can hold a maxiumum of 999 mentions
     		var index = ("00"+i).slice(-3)
     		var class_str = m.class_name + ((m.changed) ? " changed":" noChang");
     		
     		
     		var insert = "<span onClick=doConceptSelected(true,\""+index+"\") class=\""+class_str+"\">"+m.text+"</span>"
-    		//console.log(insert);
+
         	text = left+insert+right
-        	
-        	
-        	//replace(/\n/g, "<br />")
+
     	}	
     	$("#doc-viewer").html(text);
     }
+    
     //sort and remove overlapping mentions
     function cleanMentionList()
     {
@@ -713,14 +711,23 @@ body {
     	
     	var domain = $("#host-domain").val();
     	
+    	if(!domain.includes("http://"))
+    		domain = "http://"+domain
+    		
+    	//if input includes a path, use it, otherwise append /openmrs
+    	if(!(domain.lastIndexOf("/") > 8))
+    		domain = domain+"/openmrs"
+    	
     	$.ajax({
-    	    url: "http://"+domain+"/openmrs/module/bannerprototype/transport.form",
+    	    url: domain+"/module/bannerprototype/transport.form",
     	 
-    	    // The name of the callback parameter, as specified by the YQL service
+    	    // The name of the callback parameter
     	    jsonp: "sendJsonData",
     	 
     	    // Tell jQuery we're expecting JSONP
     	    dataType: "jsonp",
+    	    timeout:5000,
+    	    error:loadModelError,
     	 
     	    
     	});
@@ -730,11 +737,21 @@ body {
     
     var d
     
+    var _error
+    function loadModelError(x, t, m)
+    {
+    	if(t === "timeout")
+    	{
+    		alert("There was a problem loading the documents.  \nThe url should be \"ip:port\" or \"ip:port/baseurl\" for example:\n\n127.0.0.1:8080/openmrs" )
+    	}
+    	
+    }
+    
     function sendJsonData(data)
     {
     	
     	d = data
-    	console.log(data);
+    	//console.log(data);
     	$.post("rest/document-list/load-documents",
     			{"data":JSON.stringify(data)},
     			success=refreshTable
@@ -805,9 +822,6 @@ body {
     	
     	$("#populate-button").popover(populateButtonPopover)
     	$("#populate-button").popover('show')
-    	
-    	//$("#document-list").popover(documentListPopover)
-    	//$("#document-list").popover('show')
     	
     	$("#visit-note-list").popover(documentListPopover)
     	$("#visit-note-list").popover('show')

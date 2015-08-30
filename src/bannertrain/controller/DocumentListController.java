@@ -1,24 +1,14 @@
 package bannertrain.controller;
 
-import java.io.File;
-
 import org.codehaus.jackson.map.DeserializationConfig.Feature;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -39,21 +29,21 @@ import bannertrain.mediator.MediatorFactory;
 //import bannertrain.serialize.BannerDataDump;
 import bannertrain.transport.SofaDocumentTransport;
 
-// Plain old Java Object it does not extend as class or implements 
-// an interface
-
-// The class registers its methods for the HTTP GET request using the @GET annotation. 
-// Using the @Produces annotation, it defines that it can deliver several MIME types,
-// text, XML and HTML. 
-
-// The browser requests per default the HTML MIME type.
-
-//Sets the path to base URL + /hello
+/**
+ * This controller manages interacts with the document list, provides 2 URL endpoints.  
+ * 
+ * The base URL, ie /document-list, returns a JSON string of documents currently loaded
+ * 
+ * The URL /document-list/load-documents reads in a JSON string of stringified SofaDocumentTransport objects and reads them as POJOs
+ * 
+ * @author ryaneshleman
+ *
+ */
 @Path("/document-list")
 public class DocumentListController {
-	//private List<SofaDocumentTmp> documentList = new ArrayList<SofaDocumentTmp>();
+
 	private List<SofaDocumentTransport> allSofaDocuments;
-	//private BannerDataDump dump;
+
 	private Mediator mediator;
 
 	
@@ -63,31 +53,42 @@ public class DocumentListController {
 		
 	}
 	
+	/**
+	 * URL takes a JSON string representation of SofaDocumentTransport objects as produced by the jackson library.  jackson is then used to read them in as 
+	 * 
+	 * @param multivaluedMap
+	 * @return
+	 * @throws JsonParseException
+	 * @throws JsonMappingException
+	 * @throws IOException
+	 */
 	@SuppressWarnings("unchecked")
 	@Path("/load-documents")
 	@POST
 	public String loadDocuments(MultivaluedMap<String,String> multivaluedMap) throws JsonParseException, JsonMappingException, IOException 
 	{
 		
+		//extract and clean data string
 		String json = multivaluedMap.getFirst("data");
 		json = json.replaceAll("%(?![0-9a-fA-F]{2})", "%25");
         json = json.replaceAll("\\+", "%2B");
         json = URLDecoder.decode(json, "utf-8");
 		
-		//System.out.println(json);
+
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.configure(Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 		
-		//User user = mapper.readValue(new File("c:\\user.json"), User.class);
-		
-		
+		// read objects and load into mediator
 		mediator.setSofaDocumentTransport(mapper.readValue(json, SofaDocumentTransport[].class));
-		System.out.println(documentList());
-	
+
 		return "ok";
 	}
 
 
+	/**
+	 * returns a list of 
+	 * @return
+	 */
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   public String getDocumentsJson() {
@@ -102,6 +103,7 @@ public class DocumentListController {
 	  String data = "{\"data\":[";
 	
 	
+	// if no data is loaded, then return none list
 	if(!mediator.isPopulated())
 		return  data+ "[\"none\",\" none\", \" none\"]]}";
 	
